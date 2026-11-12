@@ -1,0 +1,20 @@
+# SQLite データベースファイル（リポジトリに含めない）
+shop.db
+shop.db-journal
+
+# Python バイトコードキャッシュ
+__pycache__/
+*.py[cod]
+
+# サーバーログファイル
+*.log
+/tmp/server.log
+
+# LaTeX 中間生成ファイル
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

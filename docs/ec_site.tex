@@ -1,0 +1,98 @@
+\documentclass[a4paper,twocolumn]{ltjsarticle}
+\usepackage[margin=25mm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% 標準フォントサイズを 9.0pt / 送り 12.6pt に設定
+\makeatletter
+\renewcommand{\normalsize}{\fontsize{9.0pt}{12.6pt}\selectfont}
+\renewcommand{\section}{\@startsection{section}{1}{\z@}%
+  {0.5ex \@plus .2ex \@minus .1ex}%
+  {0.15ex \@plus .1ex}%
+  {\reset@font\small\bfseries}}
+\makeatother
+
+\setlength{\columnsep}{6mm}
+
+\begin{document}
+
+\twocolumn[{%
+  \begin{center}
+    {\Large\bfseries 文房具ECサイトの制作}\par\vspace{3mm}
+  \end{center}
+}]
+\thispagestyle{empty}
+\pagestyle{empty}
+
+\section{概要}
+文房具を購入できるシンプルなネットショップ（ECサイト）を制作した。Webブラウザからアクセスし、商品一覧の閲覧、カートへの追加・削除、名前を入力しての注文確定、および過去の注文履歴の確認までを、すべて1画面（縦スクロール）で行うことができる。画面遷移をなくし、すべての操作が1つのページで直感的に完結する設計とした。商品画像は Antigravity の画像生成機能で作成し、\texttt{images} フォルダに配置している。
+
+\section{使用技術}
+本システムは Python 3 に最初から入っている機能（標準ライブラリ）だけで作った。
+\begin{itemize}
+  \setlength{\itemsep}{0.5pt}\setlength{\parskip}{0pt}\setlength{\topsep}{0.5pt}\setlength{\parsep}{0pt}
+  \item \textbf{http.server}：ブラウザからの要求を受け取り、画像やHTML画面を作って送り返すWebサーバーの仕組み。
+  \item \textbf{sqlite3}：データを表の形で1つのファイル（\texttt{shop.db}）に保存するデータベース。
+\end{itemize}
+追加のインストール（pip）は一切不要であり、JavaScript も使用していない。全体の処理は \texttt{server.py} という1つのプログラムファイル（約200行）のみで完結している。
+
+\section{システムの仕組み}
+ブラウザとサーバー間のやり取りは、Webの基本的な仕組みであるフォーム送信（POST方式）とリダイレクトを採用した。
+\begin{enumerate}
+  \setlength{\itemsep}{0.5pt}\setlength{\parskip}{0pt}\setlength{\topsep}{0.5pt}\setlength{\parsep}{0pt}
+  \item ボタン（追加・削除・注文）を押すと、フォームからサーバーへデータが送信される。
+  \item サーバー（\texttt{server.py}）がデータを受け取り、データベースの内容を書き換える。
+  \item サーバーがリダイレクト指示（トップ画面へ戻る案内）をブラウザへ返す。
+  \item ブラウザがトップ画面を自動で再読み込みし、最新のデータベース内容で画面が再表示される。
+\end{enumerate}
+この仕組みにより、複雑なJavaScriptを書くことなく、確実な画面更新を実現している。
+
+\section{データベースの構成}
+SQLite 内で以下の3つの表を作成してデータを管理している。
+
+\vspace{0.5mm}
+\noindent
+\small
+\begin{tabularx}{\columnwidth}{lX}
+\toprule
+\textbf{表名} & \textbf{主な列名と役割} \\
+\midrule
+\texttt{products} & \texttt{id, name, image, price, stock}。商品情報。起動時に文房具5種を自動登録。 \\
+\texttt{cart}     & \texttt{product\_id, quantity}。カート内の商品と数量（1人で使う前提）。 \\
+\texttt{orders}   & \texttt{id, name, items, total}。確定した注文。items列に商品名と個数を保存。 \\
+\bottomrule
+\end{tabularx}
+\normalsize
+\vspace{0.5mm}
+
+\section{注文処理の流れ}
+名前を入力して「注文する」を押した際の流れは以下の通りである。
+\begin{enumerate}
+  \setlength{\itemsep}{0.5pt}\setlength{\parskip}{0pt}\setlength{\topsep}{0.5pt}\setlength{\parsep}{0pt}
+  \item \textbf{在庫確認}：カート内の数量が商品の在庫数以下であるかをサーバー側で確認する。
+  \item \textbf{在庫不足時}：「在庫が足りません」と画面上部に表示し、注文は確定させない。
+  \item \textbf{在庫の減算}：在庫が足りる場合、購入された個数分だけ商品の在庫数を減らす。
+  \item \textbf{注文の保存}：注文内容と合計金額を \texttt{orders} 表に記録し、カートを空にする。
+  \item \textbf{完了表示}：「注文番号 ○ で受け付けました」と表示して注文完了とする。
+\end{enumerate}
+
+\section{工夫した点}
+初心者でも安全で信頼できるネットショップにするため、以下の工夫を行った。
+\begin{itemize}
+  \setlength{\itemsep}{0.5pt}\setlength{\parskip}{0pt}\setlength{\topsep}{0.5pt}\setlength{\parsep}{0pt}
+  \item \textbf{安全な画像配信}：サーバーは \texttt{/images/} で始まる URL のときだけ \texttt{images} フォルダの画像を返し、\texttt{server.py} や \texttt{shop.db} はブラウザから見えないようにした。「\texttt{..}」が入った URL はフォルダの外を見られないよう確実に断る（403エラー）。
+  \item \textbf{サーバー側での価格計算}：ブラウザからは商品の番号と数量しか送らず、小計や合計金額はサーバーがデータベースの価格をもとに計算する。
+  \item \textbf{在庫切れ対応}：在庫が0の商品は「売り切れ」と表示してボタンを押せなくし、カート追加時も現在の在庫数を超える数量は追加できないようにした。
+  \item \textbf{文字のエスケープ}：名前を画面に表示する際、\texttt{html.escape} を通して特殊記号を変換し、入力された文字がHTMLとして動いてしまわないよう安全対策を行った。
+\end{itemize}
+
+\section{動かし方}
+コンテナ（Ubuntu）内の \texttt{0.0.0.0} の 80番ポートで待ち受ける。Windows の PowerShell からコンテナを作り、リポジトリを取得して \texttt{python3 server.py} を実行する。詳しいコマンドは \texttt{README.md} に記載した。
+
+\section{コーディングエージェントの活用}
+開発には Google Antigravity CLI という AI エージェントを活用した。最初に出力されたコードは8ファイル構成で複雑だったため、自分が説明できるよう1ファイル（約150行）に作り直させた。その後、見た目が簡素すぎたため、画像生成機能で商品写真を作成して配置させ、カード型デザインなどお店らしい見た目を追加させた。AIにお願いしながら少しずつプログラムを良くしていく便利さを実感できた。
+
+\section{制限事項とまとめ}
+本システムは理解しやすさを最優先としたため、カートのデータは全員で共有する仕様（1人で使う前提）としている。複数人で別々に使うには、使う人ごとにカートを分ける仕組みが必要になるが、仕組みを簡単に保つためあえて省略した。また、大量の商品や注文への速度面は考慮していない。本制作を通じ、Webサーバーが画面をやり取りする仕組みや、データベースで安全にデータを扱う基本をしっかりと学ぶことができた。
+
+\end{document}
